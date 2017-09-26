@@ -11,7 +11,6 @@
 using namespace cv;
 using namespace std;
 
-// test
 
 int main(int argc, const char* argv[])
 {
@@ -26,9 +25,9 @@ int main(int argc, const char* argv[])
 		imshow("src", src);
 
 		/// cornerHarrisの各値
-		int blockSize = 3; // Default = 2 , matched = 3
-		int apertureSize = 7; // Default = 3 , matched = 7
-		double k = 0.2; // Default = 0.04 , matched = 0.06
+		int blockSize = 3;			// Default = 2		,matched = 3	,minimum = 3
+		int apertureSize = 7;		// Default = 3		,matched = 7	,minimum = 7
+		double k = 0.2;				// Default = 0.04	,matched = 0.06	,minimum = 0.2 
 
 		/// ハリスの方法で特徴点を検出する
 		cornerHarris(src, dst, blockSize, apertureSize, k, BORDER_DEFAULT);
@@ -71,18 +70,18 @@ int main(int argc, const char* argv[])
 			}
 		}
 		cout << "count = " << count << endl;
-		cout << "S cols = " << Ifeatures.cols << " ,S rows = " << Ifeatures.rows << endl;
+		cout << "S.cols = " << Ifeatures.cols << " ,S.rows = " << Ifeatures.rows << endl;
 
 		/* 縦書きで、行が右から左に進むことを仮定した処理 */
 
 		// 特徴点近傍を定義する関数
 		int mgn1 = 75;
 		int mgn2 = 25;
-		int th = 5;
+		int th = 5; //default=5
 		// 切り出した文字セグメントの位置と幅を格納する変数
 		int num = 0;
 		Mat segment = Mat::zeros(8000, 5, CV_32SC1);
-		//Mat sort_seg;
+		Mat opt_seg;
 
 		/* 特徴点画像を右から左に、右斜下方向にスキャンすることで文字セグメントの初期値を計算する */
 
@@ -174,9 +173,6 @@ int main(int argc, const char* argv[])
 					}
 					double xctr = round((lft + rgt)/2);
 
-					// segmentへ格納する数を制限 **修正予定
-					//if (num > 999) break;
-
 					// segmentのnum番目の行に抽出した文字領域を格納
 					segment.at<int>(num, 0) = 1;
 					segment.at<int>(num, 1) = top;
@@ -184,7 +180,7 @@ int main(int argc, const char* argv[])
 					segment.at<int>(num, 3) = lft;
 					segment.at<int>(num, 4) = rgt;
 					num++;
-					cout << "seg_num1=" << num << endl;
+					//cout << "seg_num1=" << num << endl;
 
 					/* 文字領域と判定した場所から下方向に文字領域を探索する */
 					int yy = y + mgn1 + mgn2 + 1;
@@ -194,7 +190,6 @@ int main(int argc, const char* argv[])
 							//cout << "break_limit" << endl;
 							break;
 						}
-						//cout << "x=" << x << ",y=" << y << ",yy=" << yy << endl;
 						// 処理対象の近傍領域を設定する
 						yrng = (yy + mgn1) - (yy - mgn2) + 1;
 						xrng = (xctr + mgn2) - (xctr - mgn2) + 1;
@@ -247,9 +242,6 @@ int main(int argc, const char* argv[])
 								}
 							}
 						}
-
-						// segmentへの格納する数を制限 **修正予定
-						//if (num > 999) break;
 						
 						// segmentのnum番目の行に抽出した文字領域を格納
 						segment.at<int>(num, 0) = 2;
@@ -258,13 +250,13 @@ int main(int argc, const char* argv[])
 						segment.at<int>(num, 3) = lft;
 						segment.at<int>(num, 4) = rgt;
 						num++;
-						cout << "seg_num2=" << num << endl;
+						//cout << "seg_num2=" << num << endl;
 
 						//処理する領域を下に移動する
 						xctr = round((lft + rgt) / 2);
 						yy = btm + 1 + mgn2;
 					}
-					cout << "break_roop" << endl;
+					//cout << "break_roop" << endl;
 					break;
 				}
 
@@ -272,7 +264,7 @@ int main(int argc, const char* argv[])
 				x = x + 1;
 				y = y + 1;
 				if (x > dst2.cols - mgn2 || y > dst2.rows - mgn1){
-					cout << "break_over_end" << endl;
+					//cout << "break_over_end" << endl;
 					break;
 				}
 			}
@@ -280,12 +272,10 @@ int main(int argc, const char* argv[])
 
 		cout << "num=" << num << endl;
 
-		//要修正→配列の大きさを最適化する(値が0でない行までを残す)
-		//sort_seg = Mat::zeros(num, 5, CV_32SC1);
-		//segment.copyTo(sort_seg);
-		//sort_seg = segment.reshape(0, num); segmentと同じ値(1000*5行列)		
-		//cout << "segment=" << endl << segment << endl;
-		//cout << "segment.size=" << segment.size() << endl;
+		//配列の大きさを最適化する(値が0でない行までを残す)
+		opt_seg = Mat::zeros(num, 5, CV_32SC1);
+		opt_seg = segment.rowRange(cv::Range(0, num));	
+		cout << "opt_seg.size=" << opt_seg.size() << endl;
 
 		/////////////////////////////////////////////////////////////////////////////
 
@@ -304,12 +294,12 @@ int main(int argc, const char* argv[])
 		// 列先端のセグメントの番号と座標をtopsegにコピーする		
 		Mat topseg = Mat::zeros(tnum, 3, CV_32SC1); // tnum行3列
 		tnum = 0;
-		for (int i = 0; i < segment.rows ; i++){ // segmentの行数=1000
+		for (int i = 0; i < segment.rows ; i++){
 			if (segment.at<int>(i, 0) == 1){
+				topseg.at<int>(tnum, 0) = i;
+				topseg.at<int>(tnum, 1) = segment.at<int>(i, 3); // lft
+				topseg.at<int>(tnum, 2) = segment.at<int>(i, 1); // top
 				tnum++;
-				topseg.at<int>(tnum-1, 0) = i;
-				topseg.at<int>(tnum-1, 1) = segment.at<int>(i, 3);
-				topseg.at<int>(tnum-1, 2) = segment.at<int>(i, 1);
 			}		
 		}
 
@@ -317,17 +307,18 @@ int main(int argc, const char* argv[])
 		int lnum = 10;
 		int rn[2] = {};
 		//推定した直線と列先端セグメントの距離を格納する配列,double型を格納するよう指定
-		Mat d = Mat::zeros(lnum, tnum,CV_64FC1);
-		for (int k = 1; k < lnum; k++){
+		Mat seg_dst = Mat::zeros(lnum, tnum,CV_64FC1);
+		for (int k = 1; k <= lnum; k++){ //2つの乱数を生成
 			for (int j = 0; j < 2; j++){
 				rn[j] = rand() % tnum;
 			}
 			if (rn[0] == rn[1]){ //2つの乱数が異なる数値になるようにする
-				rn[1] = rand() % tnum + 1;
+				rn[1] = rand() % tnum;
 				while (rn[1] == rn[0]){
 					rn[1] = rand() % tnum;
 				}
 			}
+
 			//2点の座標2~3列目(Cの場合,1~2列目)を取り出す
 			Mat xy1 = Mat::zeros(1, 2, CV_64FC1); //int型
 			Mat xy2 = xy1.clone();
@@ -339,7 +330,6 @@ int main(int argc, const char* argv[])
 			xy1.at<double>(0, 1) = topseg.at<int>(rn[0], 2);
 			xy2.at<double>(0, 0) = topseg.at<int>(rn[1], 1);
 			xy2.at<double>(0, 1) = topseg.at<int>(rn[1], 2);
-
 			// xy1,xy2を転置 1*2行列→2*1行列へ変更
 			xy1 = xy1.t();
 			xy2 = xy2.t();
@@ -353,16 +343,16 @@ int main(int argc, const char* argv[])
 
 			// v2 = [v1[1] ; -v1[0]]; 直交する単位ベクトル,入れ替えたベクトル
 			v2.at<double>(0, 0) = v1.at<double>(1, 0);
-			v2.at<double>(1, 0) = -v1.at<double>(0,0);
+			v2.at<double>(1, 0) = -v1.at<double>(0, 0);
 
 			// 2点から決まる直線との距離を計算する
-			for (int i = 0; i < tnum; i++){
+			for (int i = 1; i <= tnum; i++){
 				Mat xy3 = Mat::zeros(1, 2, CV_64FC1);
 				if (i == rn[0] || i == rn[1]){
-					d.at<double>(k, tnum-1) = 0;
+					seg_dst.at<double>(k-1, tnum-1) = 0;
 				} else {
-					xy3.at<double>(0, 0) = topseg.at<int>(i, 1);
-					xy3.at<double>(0, 1) = topseg.at<int>(i, 2);
+					xy3.at<double>(0, 0) = topseg.at<int>(i-1, 1);
+					xy3.at<double>(0, 1) = topseg.at<int>(i-1, 2);
 
 					// xy3を転置
 					xy3 = xy3.t();
@@ -373,33 +363,32 @@ int main(int argc, const char* argv[])
 					a.at<double>(1, 0) = v2.at<double>(1, 0);
 					a.at<double>(0, 1) = -v1.at<double>(0, 0);
 					a.at<double>(1, 1) = -v1.at<double>(1, 0);
-					
+
 					Mat ab = Mat::zeros(2, 1, CV_64FC1);
 					//逆行列を求める
 					// a.inv() .. aの逆行列
 					ab = a.inv() * (xy1 - xy3);
-					d.at<double>(k, i) = fabs(ab.at<double>(0,0)); //fabs .. 引数xの絶対値を計算し、結果をdouble型で返す
+					seg_dst.at<double>(k-1, i-1) = fabs(ab.at<double>(0,0)); //fabs .. 引数xの絶対値を計算し、結果をdouble型で返す
 				}
 			}
 		}
-		//cout << "d=" << endl << d << endl;
 
 		// lnum本の直線の中で,tnum個の距離値の中央値が最小のものを最も良い近似直線とする
 		// 中央値を求める
-		Mat d_sort;
+		Mat dst_sort;
 		// 各行を大きさの順に並び替える		
-		cv::sort(d, d_sort, CV_SORT_EVERY_ROW|CV_SORT_ASCENDING); //行列の各行を昇順にソートする
-		//cout << "d_sort=" << endl << d_sort << endl;
+		cv::sort(seg_dst, dst_sort, CV_SORT_EVERY_ROW|CV_SORT_ASCENDING); //行列の各行を昇順にソートする
+		//cout << "dst_sort=" << endl << dst_sort << endl;
 
 		double med[10] = {};
 		for (int h = 0; h < lnum; h++){ // lnum=10
 			if (tnum % 2 == 1){ //データ数(列数)が奇数個の場合
-				med[h] = d_sort.at<double>(h, (tnum-1)/2);
+				med[h] = dst_sort.at<double>(h, (tnum-1)/2);
 			}
 			else { //データ数(列数)が偶数個の場合
-				med[h] = (d_sort.at<double>(h, (tnum / 2) - 1) + d_sort.at<double>(h, tnum / 2)) / 2.0;
+				med[h] = (dst_sort.at<double>(h, (tnum / 2) - 1) + dst_sort.at<double>(h, tnum / 2)) / 2.0;
 			}
-			cout << h << ".med=" << med[h] << endl;
+			cout << h << ".med= " << med[h] << endl;
 		}
 
 		//最小値を求める
@@ -411,12 +400,12 @@ int main(int argc, const char* argv[])
 				index = i;			
 			}
 		}
-		cout << "min=" << min << ",index=" << index << endl; //最小値とその場所
+		cout << "min= " << min << ",index= " << index << endl; //最小値とその場所
 
-		// 近似直線までの距離がth以上の列先端セグメントとそれ続くセグメントを除去する
-		th = 150;
+		// 近似直線までの距離がth以上の列先端セグメントとそれに続くセグメントを除去する
+		th = 150; //default=150
 		for (int i = 0; i < tnum; i++){
-			if (d.at<double>(index, i) > th){
+			if (seg_dst.at<double>(index, i) > th){
 				k = topseg.at<int>(i, 0);
 				segment.at<int>(k, 0) = 0;
 				k++;
@@ -439,7 +428,11 @@ int main(int argc, const char* argv[])
 				cv::line(edge, cv::Point(rgt, btm), cv::Point(rgt, top), cv::Scalar(0, 0, 200), 3, 4);
 				cv::line(edge, cv::Point(rgt, top), cv::Point(lft, top), cv::Scalar(0, 0, 200), 3, 4);
 				*/
-				cv::rectangle(edge, cv::Point(lft, top), cv::Point(rgt, btm), cv::Scalar(0, 0, 200), 3, 4);
+				int rect_width = 0;
+				rect_width = abs(lft - rgt);
+				if (rect_width >= 10){ //横幅があまりにも小さいものは除外
+					cv::rectangle(edge, cv::Point(lft, top), cv::Point(rgt, btm), cv::Scalar(0, 0, 200), 3, 4);
+				}
 			}
 		}
 
