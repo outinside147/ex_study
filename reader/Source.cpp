@@ -174,7 +174,7 @@ int main(int argc, const char* argv[])
 					double xctr = round((lft + rgt)/2);
 
 					// segmentのnum番目の行に抽出した文字領域を格納
-					segment.at<int>(num, 0) = 1;
+					segment.at<int>(num, 0) = 1; //文字領域の座標を記録
 					segment.at<int>(num, 1) = top;
 					segment.at<int>(num, 2) = btm;
 					segment.at<int>(num, 3) = lft;
@@ -244,7 +244,7 @@ int main(int argc, const char* argv[])
 						}
 						
 						// segmentのnum番目の行に抽出した文字領域を格納
-						segment.at<int>(num, 0) = 2;
+						segment.at<int>(num, 0) = 2; //文字領域ではない座標を記録
 						segment.at<int>(num, 1) = top;
 						segment.at<int>(num, 2) = btm;
 						segment.at<int>(num, 3) = lft;
@@ -274,7 +274,7 @@ int main(int argc, const char* argv[])
 
 		//配列の大きさを最適化する(値が0でない行までを残す)
 		opt_seg = Mat::zeros(num, 5, CV_32SC1);
-		opt_seg = segment.rowRange(cv::Range(0, num));	
+		opt_seg = segment.rowRange(cv::Range(0, num));	//セグメントの0～num行目までを変数に代入
 		cout << "opt_seg.size=" << opt_seg.size() << endl;
 
 		/////////////////////////////////////////////////////////////////////////////
@@ -308,7 +308,7 @@ int main(int argc, const char* argv[])
 		int rn[2] = {};
 		//推定した直線と列先端セグメントの距離を格納する配列,double型を格納するよう指定
 		Mat seg_dst = Mat::zeros(lnum, tnum,CV_64FC1);
-		for (int k = 1; k <= lnum; k++){ //2つの乱数を生成
+		for (int k = 0; k < lnum; k++){ //2つの乱数を生成
 			for (int j = 0; j < 2; j++){
 				rn[j] = rand() % tnum;
 			}
@@ -330,6 +330,7 @@ int main(int argc, const char* argv[])
 			xy1.at<double>(0, 1) = topseg.at<int>(rn[0], 2);
 			xy2.at<double>(0, 0) = topseg.at<int>(rn[1], 1);
 			xy2.at<double>(0, 1) = topseg.at<int>(rn[1], 2);
+
 			// xy1,xy2を転置 1*2行列→2*1行列へ変更
 			xy1 = xy1.t();
 			xy2 = xy2.t();
@@ -346,13 +347,13 @@ int main(int argc, const char* argv[])
 			v2.at<double>(1, 0) = -v1.at<double>(0, 0);
 
 			// 2点から決まる直線との距離を計算する
-			for (int i = 1; i <= tnum; i++){
+			for (int i = 0; i < tnum; i++){
 				Mat xy3 = Mat::zeros(1, 2, CV_64FC1);
 				if (i == rn[0] || i == rn[1]){
-					seg_dst.at<double>(k-1, tnum-1) = 0;
+					seg_dst.at<double>(k, tnum-1) = 0;
 				} else {
-					xy3.at<double>(0, 0) = topseg.at<int>(i-1, 1);
-					xy3.at<double>(0, 1) = topseg.at<int>(i-1, 2);
+					xy3.at<double>(0, 0) = topseg.at<int>(i, 1);
+					xy3.at<double>(0, 1) = topseg.at<int>(i, 2);
 
 					// xy3を転置
 					xy3 = xy3.t();
@@ -368,7 +369,7 @@ int main(int argc, const char* argv[])
 					//逆行列を求める
 					// a.inv() .. aの逆行列
 					ab = a.inv() * (xy1 - xy3);
-					seg_dst.at<double>(k-1, i-1) = fabs(ab.at<double>(0,0)); //fabs .. 引数xの絶対値を計算し、結果をdouble型で返す
+					seg_dst.at<double>(k, i) = fabs(ab.at<double>(0,0)); //fabs .. 引数xの絶対値を計算し、結果をdouble型で返す
 				}
 			}
 		}
@@ -394,7 +395,7 @@ int main(int argc, const char* argv[])
 		//最小値を求める
 		double min = 9999; //最小値を代入する変数
 		int index = 0;
-		for (int i = 0; i < 10; i++){
+		for (int i = 0; i < lnum; i++){
 			if (med[i] < min){
 				min = med[i];
 				index = i;			
@@ -422,17 +423,11 @@ int main(int argc, const char* argv[])
 				int btm = segment.at<int>(i, 2);
 				int lft = segment.at<int>(i, 3);
 				int rgt = segment.at<int>(i, 4);
-				/*
-				cv::line(edge, cv::Point(lft, top), cv::Point(lft, btm), cv::Scalar(0, 0, 200), 3, 4);
-				cv::line(edge, cv::Point(lft, btm), cv::Point(rgt, btm), cv::Scalar(0, 0, 200), 3, 4);
-				cv::line(edge, cv::Point(rgt, btm), cv::Point(rgt, top), cv::Scalar(0, 0, 200), 3, 4);
-				cv::line(edge, cv::Point(rgt, top), cv::Point(lft, top), cv::Scalar(0, 0, 200), 3, 4);
-				*/
 				int rect_width = 0;
 				rect_width = abs(lft - rgt);
-				if (rect_width >= 10){ //横幅があまりにも小さいものは除外
+				//if (rect_width >= 10){ //横幅があまりにも小さいものは除外
 					cv::rectangle(edge, cv::Point(lft, top), cv::Point(rgt, btm), cv::Scalar(0, 0, 200), 3, 4);
-				}
+				//}
 			}
 		}
 
