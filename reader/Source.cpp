@@ -27,7 +27,7 @@ int main(int argc, const char* argv[])
 		/// cornerHarrisの各値
 		int blockSize = 3;			// Default = 2		,matched = 3	,minimum = 3
 		int apertureSize = 7;		// Default = 3		,matched = 7	,minimum = 7
-		double k = 0.2;				// Default = 0.04	,matched = 0.06	,minimum = 0.2 
+		double k = 0.06;				// Default = 0.04	,matched = 0.06	,minimum = 0.2 
 
 		/// ハリスの方法で特徴点を検出する
 		cornerHarris(src, dst, blockSize, apertureSize, k, BORDER_DEFAULT);
@@ -69,6 +69,7 @@ int main(int argc, const char* argv[])
 				}			
 			}
 		}
+		imwrite("../images/Ifeatures.png", edge);
 		cout << "count = " << count << endl;
 		cout << "S.cols = " << Ifeatures.cols << " ,S.rows = " << Ifeatures.rows << endl;
 
@@ -78,9 +79,10 @@ int main(int argc, const char* argv[])
 		int mgn1 = 75;
 		int mgn2 = 25;
 		int th = 5; //default=5
+
 		// 切り出した文字セグメントの位置と幅を格納する変数
 		int num = 0;
-		Mat segment = Mat::zeros(8000, 5, CV_32SC1);
+		Mat segment = Mat::zeros(20000, 5, CV_32SC1);
 		Mat opt_seg;
 
 		/* 特徴点画像を右から左に、右斜下方向にスキャンすることで文字セグメントの初期値を計算する */
@@ -89,8 +91,8 @@ int main(int argc, const char* argv[])
 		int roop_cnt = 0;
 		int match_cnt = 0;
 		Mat col_vec, row_vec; //col_vec..列ベクトル,row_vec..行ベクトル
-		for (int k = dst2.cols - mgn2; k >= 1 + mgn1; k--){
-			int x = k;
+		for (int i = dst2.cols - mgn2; i >= 1 + mgn1; i--){
+			int x = i;
 			int y = 1 + mgn2;
 			int xrng, yrng;
 			while (1){
@@ -98,14 +100,16 @@ int main(int argc, const char* argv[])
 					match_cnt++;
 					yrng = (y + mgn1) - (y - mgn2) + 1; //(2496-2396) + 1
 					xrng = (x + mgn2) - (x - mgn1) + 1; //(882-782) + 1
+
 					// 特徴点画像の101*101の領域を画像として保存
-					Rect rect(x - mgn1, y + mgn1, xrng, yrng);
+					Rect rect(x - mgn1, y - mgn2, xrng, yrng);
 					Mat part_img(Ifeatures, rect);
-					//imwrite("../images/rect/rect_" + std::to_string(k) + ".png", part_img);
+					//Mat part_img2(edge, rect);
+					//imwrite("../images/rect/rect_" + std::to_string(i) + "_(" + std::to_string(x - mgn1) + "," + std::to_string(y - mgn2) + ")" + ".png", part_img2);
 					reduce(part_img, col_vec, 1, CV_REDUCE_SUM, CV_32F); // 101*101の行列を1列に縮小(各列の合計値)
 					reduce(col_vec, row_vec, 0, CV_REDUCE_SUM, CV_32F);  // 101*1の行列を1行に縮小(各行の合計値)
 					// 特徴点近傍の特徴点の数がth個以下であれば文字領域ではないと判定する
-					if (row_vec.at<int>(0, 0) <= th){
+					if (row_vec.at<float>(0,0) <= th){
 						//cout << "break_not_term" << endl;
 						break;
 					}
@@ -191,14 +195,17 @@ int main(int argc, const char* argv[])
 							break;
 						}
 						// 処理対象の近傍領域を設定する
-						yrng = (yy + mgn1) - (yy - mgn2) + 1;
-						xrng = (xctr + mgn2) - (xctr - mgn2) + 1;
-						Rect rect(x - mgn1, y + mgn1, xrng, yrng);
+						yrng = (yy + mgn1) - (yy - mgn2) + 1; //101
+						xrng = (xctr + mgn2) - (xctr - mgn2) + 1; //51
+						Rect rect(x - mgn1, y - mgn2, xrng, yrng);
 						Mat part_img(edge, rect);
 						reduce(part_img, col_vec, 1, CV_REDUCE_SUM, CV_32F); // 100*100の行列を1列に縮小(各列の合計値)
 						reduce(col_vec, row_vec, 0, CV_REDUCE_SUM, CV_32F);  // 100*1の行列を1行に縮小(各行の合計値)
 						// その中に特徴点がなければその列の探索を終了する
-						if (row_vec.at<int>(0, 0) == 0) break;
+						if (row_vec.at<float>(0, 0) == 0){
+							//cout << "break_not_term" << endl;
+							break;
+						}
 						// 近傍領域を二値化、収縮し、投影する
 						Mat roi(src, rect);
 						Mat roibw(roi.rows, roi.cols, CV_8UC1);
@@ -242,7 +249,7 @@ int main(int argc, const char* argv[])
 								}
 							}
 						}
-						
+												
 						// segmentのnum番目の行に抽出した文字領域を格納
 						segment.at<int>(num, 0) = 2; //文字領域ではない座標を記録
 						segment.at<int>(num, 1) = top;
@@ -251,7 +258,7 @@ int main(int argc, const char* argv[])
 						segment.at<int>(num, 4) = rgt;
 						num++;
 						//cout << "seg_num2=" << num << endl;
-
+						
 						//処理する領域を下に移動する
 						xctr = round((lft + rgt) / 2);
 						yy = btm + 1 + mgn2;
@@ -426,9 +433,9 @@ int main(int argc, const char* argv[])
 				int rgt = opt_seg.at<int>(i, 4);
 				int rect_width = 0;
 				rect_width = abs(lft - rgt);
-				if (rect_width >= 10){ //横幅があまりにも小さいものは除外
+				//if (rect_width >= 10){ //横幅があまりにも小さいものは除外
 					cv::rectangle(edge, cv::Point(lft, top), cv::Point(rgt, btm), cv::Scalar(0, 0, 200), 3, 4);
-				}
+				//}
 			}
 		}
 
