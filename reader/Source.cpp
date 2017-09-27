@@ -150,8 +150,8 @@ int main(int argc, const char* argv[])
 					
 					if(flg == 2){
 						// •¶š—Ìˆæ‚Å‚È‚¢”ÍˆÍ‚Ì“Á’¥“_‚ğÁ‹
-						for (int i = top-1; i < btm; i++){
-							for (int j = lft-1; j < rgt; j++){
+						for (int i = top; i < btm; i++){
+							for (int j = lft; j < rgt; j++){
 								if (dst2.at< Vec<float, 1>>(i, j)[0] > 0){
 									Ifeatures.at<unsigned char>(i, j) = 0;
 									edge.at< Vec3b>(i, j)[2] = 0;
@@ -163,8 +163,8 @@ int main(int argc, const char* argv[])
 					}
 
 					// ˆ—‚µ‚½“Á’¥“_‚ğÁ‹
-					for (int i = top-1; i < btm; i++){
-						for (int j = lft-1; j < rgt; j++){
+					for (int i = top; i < btm; i++){
+						for (int j = lft; j < rgt; j++){
 							if (dst2.at< Vec<float, 1>>(i, j)[0] > 0){
 								Ifeatures.at<unsigned char>(i, j) = 0;
 								edge.at< Vec3b>(i, j)[2] = 0;
@@ -234,8 +234,8 @@ int main(int argc, const char* argv[])
 						btm = btm + yy - (mgn2 + 1);
 						
 						// ˆ—‚µ‚½“Á’¥“_‚ğÁ‹
-						for (int i = top-1; i < btm; i++){
-							for (int j = lft-1; j < rgt; j++){
+						for (int i = top; i < btm; i++){
+							for (int j = lft; j < rgt; j++){
 								if (dst2.at< Vec<float, 1>>(i, j)[0] > 0){
 									Ifeatures.at<unsigned char>(i, j) = 0;
 									edge.at< Vec3b>(i, j)[2] = 0;
