@@ -284,8 +284,8 @@ int main(int argc, const char* argv[])
 		// 列の先端の位置を直線近似し、直線から大きく離れるものを除外する。
 		// 列先端のセグメント数を数える		
 		int tnum = 0;
-		for (int i = 0; i < segment.rows; i++){
-			if (segment.at<int>(i, 0) == 1){ //i行0列
+		for (int i = 0; i < opt_seg.rows; i++){
+			if (opt_seg.at<int>(i, 0) == 1){ //i行0列
 				tnum++;
 			}
 		}
@@ -294,11 +294,11 @@ int main(int argc, const char* argv[])
 		// 列先端のセグメントの番号と座標をtopsegにコピーする		
 		Mat topseg = Mat::zeros(tnum, 3, CV_32SC1); // tnum行3列
 		tnum = 0;
-		for (int i = 0; i < segment.rows ; i++){
-			if (segment.at<int>(i, 0) == 1){
+		for (int i = 0; i < opt_seg.rows; i++){
+			if (opt_seg.at<int>(i, 0) == 1){
 				topseg.at<int>(tnum, 0) = i;
-				topseg.at<int>(tnum, 1) = segment.at<int>(i, 3); // lft
-				topseg.at<int>(tnum, 2) = segment.at<int>(i, 1); // top
+				topseg.at<int>(tnum, 1) = opt_seg.at<int>(i, 3); // lft
+				topseg.at<int>(tnum, 2) = opt_seg.at<int>(i, 1); // top
 				tnum++;
 			}		
 		}
@@ -380,6 +380,7 @@ int main(int argc, const char* argv[])
 		// 各行を大きさの順に並び替える		
 		cv::sort(seg_dst, dst_sort, CV_SORT_EVERY_ROW|CV_SORT_ASCENDING); //行列の各行を昇順にソートする
 		//cout << "dst_sort=" << endl << dst_sort << endl;
+		//cout << "dst_sort.size=" << dst_sort.size() << endl;
 
 		double med[10] = {};
 		for (int h = 0; h < lnum; h++){ // lnum=10
@@ -408,21 +409,21 @@ int main(int argc, const char* argv[])
 		for (int i = 0; i < tnum; i++){
 			if (seg_dst.at<double>(index, i) > th){
 				k = topseg.at<int>(i, 0);
-				segment.at<int>(k, 0) = 0;
+				opt_seg.at<int>(k, 0) = 0;
 				k++;
-				while (k <= segment.rows && segment.at<int>(k, 0) == 2){
-					segment.at<int>(k, 0) = 0;
+				while (k < opt_seg.rows && opt_seg.at<int>(k, 0) == 2){
+					opt_seg.at<int>(k, 0) = 0;
 					k++;
 				}
 			}
 		}
 
 		for (int i = 0; i < num; i++){
-			if (segment.at<int>(i, 0) != 0){
-				int top = segment.at<int>(i, 1);
-				int btm = segment.at<int>(i, 2);
-				int lft = segment.at<int>(i, 3);
-				int rgt = segment.at<int>(i, 4);
+			if (opt_seg.at<int>(i, 0) != 0){
+				int top = opt_seg.at<int>(i, 1);
+				int btm = opt_seg.at<int>(i, 2);
+				int lft = opt_seg.at<int>(i, 3);
+				int rgt = opt_seg.at<int>(i, 4);
 				int rect_width = 0;
 				rect_width = abs(lft - rgt);
 				//if (rect_width >= 10){ //横幅があまりにも小さいものは除外
