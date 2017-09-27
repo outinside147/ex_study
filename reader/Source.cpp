@@ -426,9 +426,9 @@ int main(int argc, const char* argv[])
 				int rgt = opt_seg.at<int>(i, 4);
 				int rect_width = 0;
 				rect_width = abs(lft - rgt);
-				//if (rect_width >= 10){ //‰¡•‚ª‚ ‚Ü‚è‚É‚à¬‚³‚¢‚à‚Ì‚ÍœŠO
+				if (rect_width >= 10){ //‰¡•‚ª‚ ‚Ü‚è‚É‚à¬‚³‚¢‚à‚Ì‚ÍœŠO
 					cv::rectangle(edge, cv::Point(lft, top), cv::Point(rgt, btm), cv::Scalar(0, 0, 200), 3, 4);
-				//}
+				}
 			}
 		}
 
