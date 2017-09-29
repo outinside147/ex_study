@@ -21,8 +21,8 @@ int main(int argc, const char* argv[])
 
 		// 画像読み込み
 		src = imread("../images/source/DSC01095.JPG", 0); //グレースケール画像として読み込み
-		namedWindow("src", WINDOW_NORMAL | WINDOW_KEEPRATIO);
-		imshow("src", src);
+		//namedWindow("src", WINDOW_NORMAL | WINDOW_KEEPRATIO);
+		//imshow("src", src);
 
 		/// cornerHarrisの各値
 		int blockSize = 3;			// Default = 2		,matched = 3	,minimum = 3
@@ -53,6 +53,8 @@ int main(int argc, const char* argv[])
 		Mat Ifeatures = Mat::zeros(src.rows, src.cols, CV_8UC1); // 特徴点の場所を1とする配列
 		
 		//ofstream ofs("../feature_points.txt"); //テキストに出力
+		ofstream ofs1("../opt_seg_result.txt"); //テキストに出力
+		ofstream ofs2("../seg_dst.txt"); //テキストに出力
 		for (int i = 0; i < edge.rows; i++)   // 高さ
 		{
 			for (int j = 0; j < edge.cols; j++)   // 幅
@@ -296,7 +298,7 @@ int main(int argc, const char* argv[])
 				tnum++;
 			}
 		}
-		cout << "tnum=" << tnum << endl; // tnum=55
+		cout << "tnum=" << tnum << endl;
 
 		// 列先端のセグメントの番号と座標をtopsegにコピーする		
 		Mat topseg = Mat::zeros(tnum, 3, CV_32SC1); // tnum行3列
@@ -316,9 +318,9 @@ int main(int argc, const char* argv[])
 		//推定した直線と列先端セグメントの距離を格納する配列,double型を格納するよう指定
 		Mat seg_dst = Mat::zeros(lnum, tnum,CV_64FC1);
 		for (int k = 0; k < lnum; k++){ //2つの乱数を生成
-			for (int j = 0; j < 2; j++){
-				rn[j] = rand() % tnum;
-			}
+			rn[0] = rand() % tnum; // 0～tnumまでの値を乱数で生成
+			rn[1] = rand() % tnum;
+			cout << "rn1=" << rn[0] << ",rn2=" << rn[1] << endl;
 			if (rn[0] == rn[1]){ //2つの乱数が異なる数値になるようにする
 				rn[1] = rand() % tnum;
 				while (rn[1] == rn[0]){
@@ -357,7 +359,7 @@ int main(int argc, const char* argv[])
 			for (int i = 0; i < tnum; i++){
 				Mat xy3 = Mat::zeros(1, 2, CV_64FC1);
 				if (i == rn[0] || i == rn[1]){
-					seg_dst.at<double>(k, tnum-1) = 0;
+					seg_dst.at<double>(k, tnum - 1) = 0;
 				} else {
 					xy3.at<double>(0, 0) = topseg.at<int>(i, 1);
 					xy3.at<double>(0, 1) = topseg.at<int>(i, 2);
@@ -380,6 +382,8 @@ int main(int argc, const char* argv[])
 				}
 			}
 		}
+
+		ofs2 << "seg_dst = " << endl << seg_dst << endl; //テキストに出力
 
 		// lnum本の直線の中で,tnum個の距離値の中央値が最小のものを最も良い近似直線とする
 		// 中央値を求める
@@ -411,8 +415,8 @@ int main(int argc, const char* argv[])
 		}
 		cout << "min= " << min << ",index= " << index << endl; //最小値とその場所
 
-		// 近似直線までの距離がth以上の列先端セグメントとそれに続くセグメントを除去する
-		th = 150; //default=150
+		// 近似直線までの距離がthを超える列先端セグメントとそれに続くセグメントを除去する
+		th = 1000; //default=150 //all_detected=1000
 		for (int i = 0; i < tnum; i++){
 			if (seg_dst.at<double>(index, i) > th){
 				k = topseg.at<int>(i, 0);
@@ -433,11 +437,13 @@ int main(int argc, const char* argv[])
 				int rgt = opt_seg.at<int>(i, 4);
 				int rect_width = 0;
 				rect_width = abs(lft - rgt);
-				//if (rect_width >= 10){ //横幅があまりにも小さいものは除外
+				if (rect_width >= 30){ //横幅があまりにも小さいものは除外
 					cv::rectangle(edge, cv::Point(lft, top), cv::Point(rgt, btm), cv::Scalar(0, 0, 200), 3, 4);
-				//}
+				}
 			}
 		}
+
+		ofs1 << "opt_seg_result = " << endl << opt_seg << endl; //テキストに出力
 
 		/* 結果画像の表示 */
 		namedWindow("edge", WINDOW_NORMAL | WINDOW_KEEPRATIO);
