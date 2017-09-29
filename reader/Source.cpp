@@ -33,12 +33,12 @@ int main(int argc, const char* argv[])
 		cornerHarris(src, dst, blockSize, apertureSize, k, BORDER_DEFAULT);
 
 		// エッジ画像(特徴点画像)
-		imwrite("../images/dst.png", dst);
+		//imwrite("../images/dst.png", dst);
 
 		// 閾値 0.1 で [ 0 - 1 ] の範囲内で２値化
 		// dst2..2値化画像 , THRESH_BINARY..0.1以上であれば1,それ以外であれば0とする。
 		threshold(dst, dst2, 0.1, 1, THRESH_BINARY);
-		imwrite("../images/dst2.png", dst2);
+		//imwrite("../images/dst2.png", dst2);
 		// 領域確保
 		edge = Mat(src.rows, src.cols, CV_8UC3);
 
@@ -142,7 +142,7 @@ int main(int argc, const char* argv[])
 							break;
 						}
 					}
-					if (rgt != mgn1 + mgn2 + 1 && lft != 1){
+					if ((rgt != mgn1 + mgn2 + 1) && (lft != 1)){
 						flg = 1; //文字領域と判定
 					} else {
 						flg = 2; //文字領域ではないと判定
@@ -156,11 +156,11 @@ int main(int argc, const char* argv[])
 					
 					if(flg == 2){
 						// 文字領域でない範囲の特徴点を消去
-						for (int i = top; i < btm; i++){
-							for (int j = lft; j < rgt; j++){
-								if (dst2.at< Vec<float, 1>>(i, j)[0] > 0){
-									Ifeatures.at<unsigned char>(i, j) = 0;
-									edge.at< Vec3b>(i, j)[2] = 0;
+						for (int i = top; i <= btm; i++){
+							for (int j = lft; j <= rgt; j++){
+								if (dst2.at< Vec<float, 1>>(i-1, j-1)[0] > 0){
+									Ifeatures.at<unsigned char>(i-1, j-1) = 0;
+									edge.at< Vec3b>(i-1, j-1)[2] = 0;
 								}
 							}
 						}
@@ -169,11 +169,11 @@ int main(int argc, const char* argv[])
 					}
 
 					// 処理した特徴点を消去
-					for (int i = top; i < btm; i++){
-						for (int j = lft; j < rgt; j++){
-							if (dst2.at< Vec<float, 1>>(i, j)[0] > 0){
-								Ifeatures.at<unsigned char>(i, j) = 0;
-								edge.at< Vec3b>(i, j)[2] = 0;
+					for (int i = top; i <= btm; i++){
+						for (int j = lft; j <= rgt; j++){
+							if (dst2.at< Vec<float, 1>>(i - 1, j - 1)[0] > 0){
+								Ifeatures.at<unsigned char>(i - 1, j - 1) = 0;
+								edge.at< Vec3b>(i - 1, j - 1)[2] = 0;
 							}
 						}
 					}
