@@ -155,7 +155,7 @@ int main(int argc, const char* argv[])
 					btm = y + mgn1;
 					
 					if(flg == 2){
-						// 文字領域でない範囲の特徴点を消去
+						// 文字領域でない範囲の特徴点を消去(処理した特徴点を消去する)
 						for (int i = top; i <= btm; i++){
 							for (int j = lft; j <= rgt; j++){
 								if (dst2.at< Vec<float, 1>>(i-1, j-1)[0] > 0){
@@ -431,6 +431,8 @@ int main(int argc, const char* argv[])
 
 		for (int i = 0; i < num; i++){
 			if (opt_seg.at<int>(i, 0) != 0){
+			//if (opt_seg.at<int>(i, 0) == 1){ //文字のみ
+			//if (opt_seg.at<int>(i, 0) == 2){ //文字以外
 				int top = opt_seg.at<int>(i, 1);
 				int btm = opt_seg.at<int>(i, 2);
 				int lft = opt_seg.at<int>(i, 3);
