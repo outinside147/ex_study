@@ -20,14 +20,14 @@ int main(int argc, const char* argv[])
 		Mat src,dst, dst2, edge;
 
 		// 画像読み込み
-		src = imread("../images/source/DSC01095.JPG", 0); //グレースケール画像として読み込み
+		src = imread("../images/source/DSC01060.JPG", 0); //グレースケール画像として読み込み
 		//namedWindow("src", WINDOW_NORMAL | WINDOW_KEEPRATIO);
 		//imshow("src", src);
 
 		/// cornerHarrisの各値
 		int blockSize = 3;			// Default = 2		,matched = 3	,minimum = 3
 		int apertureSize = 7;		// Default = 3		,matched = 7	,minimum = 7
-		double k = 0.06;				// Default = 0.04	,matched = 0.06	,minimum = 0.2 
+		double k = 0.10;				// Default = 0.04	,matched = 0.06	,minimum = 0.2 
 
 		/// ハリスの方法で特徴点を検出する
 		cornerHarris(src, dst, blockSize, apertureSize, k, BORDER_DEFAULT);
@@ -55,6 +55,7 @@ int main(int argc, const char* argv[])
 		//ofstream ofs("../feature_points.txt"); //テキストに出力
 		ofstream ofs1("../opt_seg_result.txt"); //テキストに出力
 		ofstream ofs2("../seg_dst.txt"); //テキストに出力
+		ofstream ofs3("../opt_segment.txt");
 		for (int i = 0; i < edge.rows; i++)   // 高さ
 		{
 			for (int j = 0; j < edge.cols; j++)   // 幅
@@ -91,17 +92,15 @@ int main(int argc, const char* argv[])
 
 		// 画像の切り抜き,文字領域の判定
 		int roop_cnt = 0;
-		int match_cnt = 0;
 		Mat col_vec, row_vec; //col_vec..列ベクトル,row_vec..行ベクトル
-		for (int i = dst2.cols - mgn2; i >= 1 + mgn1; i--){
+		for (int i = dst2.cols - mgn2; i >= 1 + mgn1; i--){ //4567～76
 			int x = i;
 			int y = 1 + mgn2;
 			int xrng, yrng;
 			while (1){
 				if (Ifeatures.at<unsigned char>(y, x) == 1){
-					match_cnt++;
-					yrng = (y + mgn1) - (y - mgn2) + 1; //(2496-2396) + 1
-					xrng = (x + mgn2) - (x - mgn1) + 1; //(882-782) + 1
+					yrng = mgn1 + mgn2 + 1; // 101
+					xrng = mgn2 + mgn1 + 1; // 101
 
 					// 特徴点画像の101*101の領域を画像として保存
 					Rect rect(x - mgn1, y - mgn2, xrng, yrng);
@@ -124,25 +123,25 @@ int main(int argc, const char* argv[])
 					threshold(roi, roibw, 0, 1, THRESH_BINARY | THRESH_OTSU);
 					// 3*3の正方形の構造化要素で収縮処理
 					erode(roibw, reduct_img, Mat(), cv::Point(-1, -1),1);
-					// 垂直方向に投影する(列ごとの和を計算)
+					// 垂直方向に投影する(列ごとの和を計算,1行101列)
 					reduce(reduct_img,ref_img, 0, CV_REDUCE_SUM, CV_32F);
 
 					//投影データに境界があればflg=1,なければflg=2
 					//int rgt,lft,top,btm,flg;
 					double rgt,lft,top,btm,flg;
-					for (rgt = mgn1+2 ; rgt <= mgn1 + mgn2+1 ; rgt++){
+					for (rgt = mgn1+2 ; rgt <= mgn1 + mgn2+1 ; rgt++){ //77～101
 						if (ref_img.at<float>(0,rgt-1) == roibw.rows){
 							//cout << "break_rgt1" << endl;
 							break;
 						}
 					}
-					for (lft = mgn1; lft >= 1; lft--){
+					for (lft = mgn1; lft >= 1; lft--){ //75～1
 						if (ref_img.at<float>(0, lft-1) == roibw.rows){
 							//cout << "break_lft1" << endl;
 							break;
 						}
 					}
-					if ((rgt != mgn1 + mgn2 + 1) && (lft != 1)){
+					if ((rgt != mgn1 + mgn2 + 1) && (lft != 1)){ // 右端が101ではない&左端が1ではない
 						flg = 1; //文字領域と判定
 					} else {
 						flg = 2; //文字領域ではないと判定
@@ -189,25 +188,27 @@ int main(int argc, const char* argv[])
 					//cout << "seg_num1=" << num << endl;
 
 					/* 文字領域と判定した場所から下方向に文字領域を探索する */
-					int yy = y + mgn1 + mgn2 + 1;
+					int yy = y + mgn1 + mgn2 + 1; // (1+mgn2)+mgn1+mgn2+1 = 127
 					while (1){
 						// 画像の下端に達すれば終了
-						if (yy > src.rows - mgn1){
+						if (yy > src.rows - mgn1){ //2501
 							//cout << "break_limit" << endl;
 							break;
 						}
 						// 処理対象の近傍領域を設定する
-						yrng = (yy + mgn1) - (yy - mgn2) + 1; //101
-						xrng = (xctr + mgn2) - (xctr - mgn2) + 1; //51
+						yrng = mgn1 + mgn2 + 1; //101
+						xrng = (mgn2*2) + 1; //51
 						Rect rect(x - mgn1, y - mgn2, xrng, yrng);
-						Mat part_img(edge, rect);
-						reduce(part_img, col_vec, 1, CV_REDUCE_SUM, CV_32F); // 100*100の行列を1列に縮小(各列の合計値)
+						Mat part_img(Ifeatures, rect);
+						reduce(part_img, col_vec, 1, CV_REDUCE_SUM, CV_32F); // 100*51の行列を1列に縮小(各列の合計値)
 						reduce(col_vec, row_vec, 0, CV_REDUCE_SUM, CV_32F);  // 100*1の行列を1行に縮小(各行の合計値)
+						
 						// その中に特徴点がなければその列の探索を終了する
 						if (row_vec.at<float>(0, 0) == 0){
 							//cout << "break_not_term" << endl;
 							break;
 						}
+
 						// 近傍領域を二値化、収縮し、投影する
 						Mat roi(src, rect);
 						Mat roibw(roi.rows, roi.cols, CV_8UC1);
@@ -215,27 +216,29 @@ int main(int argc, const char* argv[])
 						Mat ref_img,ref_img2;
 						threshold(roi, roibw, 0, 1, THRESH_BINARY | THRESH_OTSU);
 						erode(roibw, reduct_img, Mat(), cv::Point(-1, -1), 1);
-						reduce(reduct_img, ref_img, 0, CV_REDUCE_SUM, CV_32F); // 1*101行列
-						reduce(reduct_img, ref_img2, 1, CV_REDUCE_SUM, CV_32F); // 101*1行列
+						reduce(reduct_img, ref_img, 0, CV_REDUCE_SUM, CV_32F); // 1行*101列
+						reduce(reduct_img, ref_img2, 1, CV_REDUCE_SUM, CV_32F); // 101行*1列
+
 						// 投影データから文字が存在する範囲を推定する
-						for (rgt = mgn2 + 2; rgt <= mgn2 + mgn2 + 1; rgt++){
+						for (rgt = mgn2 + 2; rgt <= mgn2 + mgn2 + 1; rgt++){ //27～51
 							if (ref_img.at<float>(0, rgt-1) == roibw.rows){
 								//cout << "break_rgt2" << endl;
 								break;
 							}
 						}
-						for (lft = mgn2; lft >= 1; lft--){
+						for (lft = mgn2; lft >= 1; lft--){ //25～1
 							if (ref_img.at<float>(0, lft-1) == roibw.rows){
 								//cout << "break_lft2" << endl;
 								break;
 							}
 						}
-						for (btm = mgn1 + mgn2 + 1; btm >= 1; btm--){
+						for (btm = mgn1 + mgn2 + 1; btm >= 1; btm--){ //101～1
 							if (ref_img2.at<float>(btm-1, 0) != roibw.cols){
 								//cout << "break_btm2" << endl;
 								break;
 							}
 						}
+
 						//画像上の座標に変換する
 						rgt = rgt + xctr - (mgn2 + 1);
 						lft = lft + xctr - (mgn2 + 1);
@@ -285,6 +288,7 @@ int main(int argc, const char* argv[])
 		opt_seg = Mat::zeros(num, 5, CV_32SC1);
 		opt_seg = segment.rowRange(cv::Range(0, num));	//セグメントの0～num行目までを変数に代入
 		cout << "opt_seg.size=" << opt_seg.size() << endl;
+		ofs3 << "opt_segment = " << endl << "flg top  btm  lft  rgt" << endl << opt_seg << endl; //テキストに出力
 
 		/////////////////////////////////////////////////////////////////////////////
 
@@ -308,6 +312,7 @@ int main(int argc, const char* argv[])
 				topseg.at<int>(tnum, 0) = i;
 				topseg.at<int>(tnum, 1) = opt_seg.at<int>(i, 3); // lft
 				topseg.at<int>(tnum, 2) = opt_seg.at<int>(i, 1); // top
+				//cv::line(edge, cv::Point(topseg.at<int>(tnum, 1), topseg.at<int>(tnum, 2)), cv::Point(topseg.at<int>(tnum, 1), topseg.at<int>(tnum, 2)), cv::Scalar(200, 0, 0), 5, 8);
 				tnum++;
 			}		
 		}
@@ -315,12 +320,12 @@ int main(int argc, const char* argv[])
 		// 列先端の座標から、RANSACで直線を推定し、推定した直線と列先端セグメントの距離を求める
 		int lnum = 10;
 		int rn[2] = {};
-		//推定した直線と列先端セグメントの距離を格納する配列,double型を格納するよう指定
+		//推定した直線と列先端セグメントの距離を格納する配列(double型)
 		Mat seg_dst = Mat::zeros(lnum, tnum,CV_64FC1);
 		for (int k = 0; k < lnum; k++){ //2つの乱数を生成
 			rn[0] = rand() % tnum; // 0～tnumまでの値を乱数で生成
 			rn[1] = rand() % tnum;
-			cout << "rn1=" << rn[0] << ",rn2=" << rn[1] << endl;
+			//cout << "rn1=" << rn[0] << ",rn2=" << rn[1] << endl;
 			if (rn[0] == rn[1]){ //2つの乱数が異なる数値になるようにする
 				rn[1] = rand() % tnum;
 				while (rn[1] == rn[0]){
@@ -328,7 +333,7 @@ int main(int argc, const char* argv[])
 				}
 			}
 
-			//2点の座標2~3列目(Cの場合,1~2列目)を取り出す
+			//2点の座標1～2列目(lft,top)を取り出す
 			Mat xy1 = Mat::zeros(1, 2, CV_64FC1); //int型
 			Mat xy2 = xy1.clone();
 
@@ -340,7 +345,7 @@ int main(int argc, const char* argv[])
 			xy2.at<double>(0, 0) = topseg.at<int>(rn[1], 1);
 			xy2.at<double>(0, 1) = topseg.at<int>(rn[1], 2);
 
-			// xy1,xy2を転置 1*2行列→2*1行列へ変更
+			// xy1,xy2を転置 1行*2列→2行*1列へ変更
 			xy1 = xy1.t();
 			xy2 = xy2.t();
 
@@ -364,7 +369,7 @@ int main(int argc, const char* argv[])
 					xy3.at<double>(0, 0) = topseg.at<int>(i, 1);
 					xy3.at<double>(0, 1) = topseg.at<int>(i, 2);
 
-					// xy3を転置
+					// xy3を転置 1行*2列→2行*1列へ変更
 					xy3 = xy3.t();
 
 					// ab = [v2,-v1]\(xy1-xy3) = inv([v2,-v1])*(xy1-xy3)
@@ -428,10 +433,10 @@ int main(int argc, const char* argv[])
 				}
 			}
 		}
-
+		
 		for (int i = 0; i < num; i++){
-			if (opt_seg.at<int>(i, 0) != 0){
-			//if (opt_seg.at<int>(i, 0) == 1){ //文字のみ
+			//if (opt_seg.at<int>(i, 0) != 0){
+			if (opt_seg.at<int>(i, 0) == 1){ //文字のみ
 			//if (opt_seg.at<int>(i, 0) == 2){ //文字以外
 				int top = opt_seg.at<int>(i, 1);
 				int btm = opt_seg.at<int>(i, 2);
@@ -439,13 +444,17 @@ int main(int argc, const char* argv[])
 				int rgt = opt_seg.at<int>(i, 4);
 				int rect_width = 0;
 				rect_width = abs(lft - rgt);
-				if (rect_width >= 30){ //横幅があまりにも小さいものは除外
+				if (rect_width >= 10){ //横幅があまりにも小さいものは除外
 					cv::rectangle(edge, cv::Point(lft, top), cv::Point(rgt, btm), cv::Scalar(0, 0, 200), 3, 4);
+					//Rect rect(lft,top,rgt-lft,btm-top);
+					//Mat part_term(edge, rect);
+					//imwrite("../images/term/term_" + std::to_string(i) + ".png", part_term);
 				}
 			}
 		}
+		
 
-		ofs1 << "opt_seg_result = " << endl << opt_seg << endl; //テキストに出力
+		ofs1 << "opt_seg_result = " << endl << "flg top  btm  lft  rgt" << endl << opt_seg << endl; //テキストに出力
 
 		/* 結果画像の表示 */
 		namedWindow("edge", WINDOW_NORMAL | WINDOW_KEEPRATIO);
