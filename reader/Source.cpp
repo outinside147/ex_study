@@ -38,7 +38,7 @@ int main(int argc, const char* argv[])
 		// 閾値 0.1 で [ 0 - 1 ] の範囲内で２値化
 		// dst2..2値化画像 , THRESH_BINARY..0.1以上であれば1,それ以外であれば0とする。
 		threshold(dst, dst2, 0.1, 1, THRESH_BINARY);
-		//imwrite("../images/dst2.png", dst2);
+
 		// 領域確保
 		edge = Mat(src.rows, src.cols, CV_8UC3);
 
@@ -56,14 +56,12 @@ int main(int argc, const char* argv[])
 		ofstream ofs1("../opt_seg_result.txt"); //テキストに出力
 		ofstream ofs2("../seg_dst.txt"); //テキストに出力
 		ofstream ofs3("../opt_segment.txt");
-		for (int i = 0; i < edge.rows; i++)   // 高さ
-		{
-			for (int j = 0; j < edge.cols; j++)   // 幅
-			{
+
+		for (int i = 0; i < edge.rows; i++){   // 高さ(行数)
+			for (int j = 0; j < edge.cols; j++){  // 幅(列数)
 				// .atメソッド..画素をピンポイントで読み込む
 				// 2値化画像の指定した点が1であれば赤く塗りつぶす
-				if (dst2.at< Vec<float, 1>>(i, j)[0] > 0)
-				{
+				if (dst2.at< Vec<float, 1>>(i, j)[0] > 0){
 					edge.at< Vec3b>(i, j)[2] = 255;
 					//特徴点ならばフラグ("1")を代入
 					Ifeatures.at<unsigned char>(i, j) = 1;
@@ -91,11 +89,10 @@ int main(int argc, const char* argv[])
 		/* 特徴点画像を右から左に、右斜下方向にスキャンすることで文字セグメントの初期値を計算する */
 
 		// 画像の切り抜き,文字領域の判定
-		int roop_cnt = 0;
 		Mat col_vec, row_vec; //col_vec..列ベクトル,row_vec..行ベクトル
 		for (int i = dst2.cols - mgn2; i >= 1 + mgn1; i--){ //4567～76
 			int x = i;
-			int y = 1 + mgn2;
+			int y = 1 + mgn2; //26
 			int xrng, yrng;
 			while (1){
 				if (Ifeatures.at<unsigned char>(y, x) == 1){
@@ -120,7 +117,8 @@ int main(int argc, const char* argv[])
 					Mat reduct_img(roi.rows, roi.cols, CV_8UC1);
 					Mat ref_img;
 					// 大津の方法で2値化
-					threshold(roi, roibw, 0, 1, THRESH_BINARY | THRESH_OTSU);
+					threshold(roi, roibw, 0, 255, THRESH_BINARY | THRESH_OTSU);
+					roibw = roibw / 255;
 					// 3*3の正方形の構造化要素で収縮処理
 					erode(roibw, reduct_img, Mat(), cv::Point(-1, -1),1);
 					// 垂直方向に投影する(列ごとの和を計算,1行101列)
@@ -130,13 +128,13 @@ int main(int argc, const char* argv[])
 					//int rgt,lft,top,btm,flg;
 					double rgt,lft,top,btm,flg;
 					for (rgt = mgn1+2 ; rgt <= mgn1 + mgn2+1 ; rgt++){ //77～101
-						if (ref_img.at<float>(0,rgt-1) == roibw.rows){
+						if (ref_img.at<float>(0,rgt-1) == roibw.rows){ //76～100
 							//cout << "break_rgt1" << endl;
 							break;
 						}
 					}
 					for (lft = mgn1; lft >= 1; lft--){ //75～1
-						if (ref_img.at<float>(0, lft-1) == roibw.rows){
+						if (ref_img.at<float>(0, lft-1) == roibw.rows){ //74～0
 							//cout << "break_lft1" << endl;
 							break;
 						}
@@ -214,7 +212,8 @@ int main(int argc, const char* argv[])
 						Mat roibw(roi.rows, roi.cols, CV_8UC1);
 						Mat reduct_img(roi.rows, roi.cols, CV_8UC1);
 						Mat ref_img,ref_img2;
-						threshold(roi, roibw, 0, 1, THRESH_BINARY | THRESH_OTSU);
+						threshold(roi, roibw, 0, 255, THRESH_BINARY | THRESH_OTSU);
+						roibw = roibw / 255;
 						erode(roibw, reduct_img, Mat(), cv::Point(-1, -1), 1);
 						reduce(reduct_img, ref_img, 0, CV_REDUCE_SUM, CV_32F); // 1行*101列
 						reduce(reduct_img, ref_img2, 1, CV_REDUCE_SUM, CV_32F); // 101行*1列
@@ -445,7 +444,7 @@ int main(int argc, const char* argv[])
 				int rect_width = 0;
 				rect_width = abs(lft - rgt);
 				if (rect_width >= 10){ //横幅があまりにも小さいものは除外
-					cv::rectangle(edge, cv::Point(lft, top), cv::Point(rgt, btm), cv::Scalar(0, 0, 200), 3, 4);
+					cv::rectangle(edge, cv::Point(lft, top), cv::Point(rgt, btm), cv::Scalar(0, 0, 200), 3, 8);
 					//Rect rect(lft,top,rgt-lft,btm-top);
 					//Mat part_term(edge, rect);
 					//imwrite("../images/term/term_" + std::to_string(i) + ".png", part_term);
@@ -453,13 +452,14 @@ int main(int argc, const char* argv[])
 			}
 		}
 		
-
 		ofs1 << "opt_seg_result = " << endl << "flg top  btm  lft  rgt" << endl << opt_seg << endl; //テキストに出力
 
 		/* 結果画像の表示 */
 		namedWindow("edge", WINDOW_NORMAL | WINDOW_KEEPRATIO);
 		imshow("edge", edge);
-		imwrite("../images/edge.png", edge);
+		//imwrite("../images/edge.png", edge);
+		imwrite("../images/edge_c.png", edge);
+		//imwrite("../images/edge_nc.png", edge);
 		waitKey(0);
 		hr = 0;
 	}
