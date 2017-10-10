@@ -27,7 +27,7 @@ int main(int argc, const char* argv[])
 		/// cornerHarrisの各値
 		int blockSize = 3;			// Default = 2		,matched = 3	,minimum = 3
 		int apertureSize = 7;		// Default = 3		,matched = 7	,minimum = 7
-		double k = 0.10;				// Default = 0.04	,matched = 0.06	,minimum = 0.2 
+		double k = 0.1;				// Default = 0.04	,matched = 0.06	,minimum = 0.2 
 
 		/// ハリスの方法で特徴点を検出する
 		cornerHarris(src, dst, blockSize, apertureSize, k, BORDER_DEFAULT);
@@ -56,6 +56,7 @@ int main(int argc, const char* argv[])
 		ofstream ofs1("../opt_seg_result.txt"); //テキストに出力
 		ofstream ofs2("../seg_dst.txt"); //テキストに出力
 		ofstream ofs3("../opt_segment.txt");
+		ofstream ofs4("../topsegment.txt");
 
 		for (int i = 0; i < edge.rows; i++){   // 高さ(行数)
 			for (int j = 0; j < edge.cols; j++){  // 幅(列数)
@@ -125,26 +126,25 @@ int main(int argc, const char* argv[])
 					reduce(reduct_img,ref_img, 0, CV_REDUCE_SUM, CV_32F);
 
 					//投影データに境界があればflg=1,なければflg=2
-					//int rgt,lft,top,btm,flg;
 					double rgt,lft,top,btm,flg;
-					for (rgt = mgn1+2 ; rgt <= mgn1 + mgn2+1 ; rgt++){ //77～101
-						if (ref_img.at<float>(0,rgt-1) == roibw.rows){ //76～100
+					for (rgt = mgn1+1 ; rgt < mgn1 + mgn2+1 ; rgt++){ //76～100
+						if (ref_img.at<float>(0,rgt) == roibw.rows){
 							//cout << "break_rgt1" << endl;
 							break;
 						}
 					}
-					for (lft = mgn1; lft >= 1; lft--){ //75～1
-						if (ref_img.at<float>(0, lft-1) == roibw.rows){ //74～0
+					for (lft = mgn1-1; lft >= 0; lft--){ //74～0
+						if (ref_img.at<float>(0, lft) == roibw.rows){
 							//cout << "break_lft1" << endl;
 							break;
 						}
 					}
-					if ((rgt != mgn1 + mgn2 + 1) && (lft != 1)){ // 右端が101ではない&左端が1ではない
+					if ((rgt != mgn1 + mgn2) && (lft != 0)){ // 右端が100ではない&左端が0ではない
 						flg = 1; //文字領域と判定
 					} else {
 						flg = 2; //文字領域ではないと判定
 					}
-					
+
 					//画像上の座標に変換する
 					rgt = rgt + x - (mgn1 + 1);
 					lft = lft + x - (mgn1 + 1);
@@ -155,9 +155,9 @@ int main(int argc, const char* argv[])
 						// 文字領域でない範囲の特徴点を消去(処理した特徴点を消去する)
 						for (int i = top; i <= btm; i++){
 							for (int j = lft; j <= rgt; j++){
-								if (dst2.at< Vec<float, 1>>(i-1, j-1)[0] > 0){
-									Ifeatures.at<unsigned char>(i-1, j-1) = 0;
-									edge.at< Vec3b>(i-1, j-1)[2] = 0;
+								if (dst2.at< Vec<float, 1>>(i - 1, j - 1)[0] > 0){
+									Ifeatures.at<unsigned char>(i - 1, j - 1) = 0;
+									edge.at< Vec3b>(i - 1, j - 1)[2] = 0;
 								}
 							}
 						}
@@ -315,6 +315,8 @@ int main(int argc, const char* argv[])
 				tnum++;
 			}		
 		}
+		ofs4 << "topseg = " << endl << "id lft top" << endl << topseg << endl; //テキストに出力
+		cout << "topseg.size=" << topseg.size() << endl;
 
 		// 列先端の座標から、RANSACで直線を推定し、推定した直線と列先端セグメントの距離を求める
 		int lnum = 10;
@@ -365,8 +367,8 @@ int main(int argc, const char* argv[])
 				if (i == rn[0] || i == rn[1]){
 					seg_dst.at<double>(k, tnum - 1) = 0;
 				} else {
-					xy3.at<double>(0, 0) = topseg.at<int>(i, 1);
-					xy3.at<double>(0, 1) = topseg.at<int>(i, 2);
+					xy3.at<double>(0, 0) = topseg.at<int>(i, 1); //lft
+					xy3.at<double>(0, 1) = topseg.at<int>(i, 2); //top
 
 					// xy3を転置 1行*2列→2行*1列へ変更
 					xy3 = xy3.t();
@@ -382,7 +384,7 @@ int main(int argc, const char* argv[])
 					//逆行列を求める
 					// a.inv() .. aの逆行列
 					ab = a.inv() * (xy1 - xy3);
-					seg_dst.at<double>(k, i) = fabs(ab.at<double>(0,0)); //fabs .. 引数xの絶対値を計算し、結果をdouble型で返す
+					seg_dst.at<double>(k, i) = abs(ab.at<double>(0,0)); //abs .. 引数xの絶対値を計算し、結果をint型で返す
 				}
 			}
 		}
@@ -433,10 +435,12 @@ int main(int argc, const char* argv[])
 			}
 		}
 		
+		Mat edge2 = edge.clone();
+		Mat edge3 = edge.clone();
+
+		//箱の描写1
 		for (int i = 0; i < num; i++){
-			//if (opt_seg.at<int>(i, 0) != 0){
-			if (opt_seg.at<int>(i, 0) == 1){ //文字のみ
-			//if (opt_seg.at<int>(i, 0) == 2){ //文字以外
+			if (opt_seg.at<int>(i, 0) != 0){ //文字と文字以外
 				int top = opt_seg.at<int>(i, 1);
 				int btm = opt_seg.at<int>(i, 2);
 				int lft = opt_seg.at<int>(i, 3);
@@ -447,10 +451,41 @@ int main(int argc, const char* argv[])
 					cv::rectangle(edge, cv::Point(lft, top), cv::Point(rgt, btm), cv::Scalar(0, 0, 200), 3, 8);
 					//Rect rect(lft,top,rgt-lft,btm-top);
 					//Mat part_term(edge, rect);
-					//imwrite("../images/term/term_" + std::to_string(i) + ".png", part_term);
+					//imwrite("../images/term/" + std::to_string(rgt) + "," + std::to_string(top) +".png", part_term);
 				}
 			}
 		}
+		imwrite("../images/edge.png", edge);
+
+		for (int i = 0; i < num; i++){
+			if (opt_seg.at<int>(i, 0) == 1){ //文字のみ
+				int top = opt_seg.at<int>(i, 1);
+				int btm = opt_seg.at<int>(i, 2);
+				int lft = opt_seg.at<int>(i, 3);
+				int rgt = opt_seg.at<int>(i, 4);
+				int rect_width = 0;
+				rect_width = abs(lft - rgt);
+				if (rect_width >= 10){ //横幅があまりにも小さいものは除外
+					cv::rectangle(edge2, cv::Point(lft, top), cv::Point(rgt, btm), cv::Scalar(0, 0, 200), 3, 8);
+				}
+			}
+		}
+		imwrite("../images/edge_c.png", edge2);
+
+		for (int i = 0; i < num; i++){
+			if (opt_seg.at<int>(i, 0) == 2){ //文字以外
+				int top = opt_seg.at<int>(i, 1);
+				int btm = opt_seg.at<int>(i, 2);
+				int lft = opt_seg.at<int>(i, 3);
+				int rgt = opt_seg.at<int>(i, 4);
+				int rect_width = 0;
+				rect_width = abs(lft - rgt);
+				if (rect_width >= 10){ //横幅があまりにも小さいものは除外
+					cv::rectangle(edge3, cv::Point(lft, top), cv::Point(rgt, btm), cv::Scalar(0, 0, 200), 3, 8);
+				}
+			}
+		}
+		imwrite("../images/edge_nc.png", edge3);
 		
 		ofs1 << "opt_seg_result = " << endl << "flg top  btm  lft  rgt" << endl << opt_seg << endl; //テキストに出力
 
@@ -458,7 +493,7 @@ int main(int argc, const char* argv[])
 		namedWindow("edge", WINDOW_NORMAL | WINDOW_KEEPRATIO);
 		imshow("edge", edge);
 		//imwrite("../images/edge.png", edge);
-		imwrite("../images/edge_c.png", edge);
+		//imwrite("../images/edge_c.png", edge);
 		//imwrite("../images/edge_nc.png", edge);
 		waitKey(0);
 		hr = 0;
